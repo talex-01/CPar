@@ -24,7 +24,9 @@ Versão otimizada do chatgpt (estudar)
 
 # Comandos importantes
 
-
+```
+perf stat -r 5 -e instructions,cycles ./fluid_sim #correr perf, se for preciso introduzir mais flags
+```
 
 # Fluid Simulation with Event Manager
 
