@@ -1,5 +1,5 @@
 # Original
-
+1. Flags = 
 Versão original do codigo com flags na MakeFile
 
 # versao1
