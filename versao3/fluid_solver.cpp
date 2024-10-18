@@ -54,23 +54,42 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 }
 
 // Linear solve for implicit methods (diffusion)
-void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a,
-               float c) {
-  for (int l = 0; l < LINEARSOLVERTIMES; l++) {
-    for (int i = 1; i <= M; i++) {
-      for (int j = 1; j <= N; j++) {
+void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
+    // Precompute the reciprocal of 'c' for later use in the calculations.
+    const float invC = 1.0f / c;
+
+    // Precompute strides to avoid recalculating during indexing.
+    const int strideN = N + 2; // For accessing j neighbors
+    const int strideO = O + 2; // For accessing k neighbors
+
+    // Loop over linear solver iterations.
+    for (int l = 0; l < LINEARSOLVERTIMES; l++) {
+        // Loop over the 3D grid points.
         for (int k = 1; k <= O; k++) {
-          x[IX(i, j, k)] = (x0[IX(i, j, k)] +
-                            a * (x[IX(i - 1, j, k)] + x[IX(i + 1, j, k)] +
-                                 x[IX(i, j - 1, k)] + x[IX(i, j + 1, k)] +
-                                 x[IX(i, j, k - 1)] + x[IX(i, j, k + 1)])) /
-                           c;
+            for (int j = 1; j <= N; j++) {
+                int kBase = k * strideN * strideO;
+                // Calculate base index for current (j, k)
+                int jBase = j * strideO;
+                for (int i = 1; i <= M; i++) {
+                    // Calculate the index for (i, j, k)
+                    int idx = kBase + jBase + i;
+
+                    // Access neighbors and update 'x' using precomputed indices
+                    x[idx] = (x0[idx] + a * (
+                        x[idx - strideN * strideO] + // x[i-1][j][k]
+                        x[idx + strideN * strideO] + // x[i+1][j][k]
+                        x[idx - strideO] +            // x[i][j-1][k]
+                        x[idx + strideO] +            // x[i][j+1][k]
+                        x[idx - 1] +                  // x[i][j][k-1]
+                        x[idx + 1]                    // x[i][j][k+1]
+                    )) * invC; // Use precomputed invC
+                }
+            }
         }
-      }
+        set_bnd(M, N, O, b, x); // Boundary conditions
     }
-    set_bnd(M, N, O, b, x);
-  }
 }
+
 
 // Diffusion step (uses implicit method)
 void diffuse(int M, int N, int O, int b, float *x, float *x0, float diff,

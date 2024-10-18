@@ -7,11 +7,11 @@ Versão otimizada do chatgpt (estudar)
 
 # versao2
 
-(introduzir o que se fez)
+Troca de Ciclos
 
 # versao3
 
-(introduzir o que se fez)
+Merge de versao1 e 2
 
 # versao4
 
