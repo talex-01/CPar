@@ -1,7 +1,7 @@
 #include "fluid_solver.h"
 #include <cmath>
 
-#define IX(i, j, k) ((i) + (M + 2) * (j) + (M + 2) * (N + 2) * (k))
+#define IX(i, j, k) ((k) + (M + 2) * (j) + (M + 2) * (N + 2) * (i))
 #define SWAP(x0, x)                                                            \
   {                                                                            \
     float *tmp = x0;                                                           \
@@ -55,21 +55,43 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 
 // Linear solve for implicit methods (diffusion)
 void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
-  const float invC = 1.0f/c;
+  const float invC = 1.0f / c;
+  const int tileSize = 16;  // Define a tile size (you can adjust this based on cache size)
+  
+  int stride_j = M + 2;      // Stride in the j-dimension (number of elements in a row)
+  int stride_k = stride_j * (N + 2);  // Stride in the k-dimension (number of elements in a plane)
+
   for (int l = 0; l < LINEARSOLVERTIMES; l++) {
-    for (int i = 1; i <= O; i++) {
-      for (int j = 1; j <= N; j++) {
-        for (int k = 1; k <= M; k++) {
-          float x_ijk = x0[IX(i, j, k)];
-          x[IX(i, j, k)] = (x_ijk + a * (x[IX(i - 1, j, k)] +
-                                          x[IX(i + 1, j, k)] +
-                                          x[IX(i, j - 1, k)] +
-                                          x[IX(i, j + 1, k)] +
-                                          x[IX(i, j, k - 1)] +
-                                          x[IX(i, j, k + 1)])) * invC;
+    // Loop over tiles in the i-dimension
+    for (int i_block = 1; i_block <= M; i_block += tileSize) {
+      // Loop over tiles in the j-dimension
+      for (int j_block = 1; j_block <= N; j_block += tileSize) {
+        // Loop over tiles in the k-dimension
+        for (int k_block = 1; k_block <= O; k_block += tileSize) {
+          
+          // Process elements in the current tile
+          for (int i = i_block; i < std::min(i_block + tileSize, M + 1); i++) {
+            for (int j = j_block; j < std::min(j_block + tileSize, N + 1); j++) {
+              for (int k = k_block; k < std::min(k_block + tileSize, O + 1); k++) {
+                // Pointer arithmetic for the current element and its neighbors
+                float *x_ptr = &x[IX(i, j, k)];
+                float *x0_ptr = &x0[IX(i, j, k)];
+                
+                // Update the current element (x[i, j, k]) using neighboring elements
+                *x_ptr = (*x0_ptr + a * (*(x_ptr - 1) +       // x[i-1, j, k]
+                                       *(x_ptr + 1) +       // x[i+1, j, k]
+                                       *(x_ptr - stride_j) +  // x[i, j-1, k]
+                                       *(x_ptr + stride_j) +  // x[i, j+1, k]
+                                       *(x_ptr - stride_k) +  // x[i, j, k-1]
+                                       *(x_ptr + stride_k)))  // x[i, j, k+1]
+                        * invC;  // Apply the inverse of c (since we're solving an implicit method)
+              }
+            }
+          }
         }
       }
     }
+    // Apply boundary conditions
     set_bnd(M, N, O, b, x);
   }
 }

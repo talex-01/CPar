@@ -1,7 +1,7 @@
 #include "fluid_solver.h"
 #include <cmath>
 
-#define IX(i, j, k) ((i) + (M + 2) * (j) + (M + 2) * (N + 2) * (k))
+#define IX(i, j, k) ((k) + (M + 2) * (j) + (M + 2) * (N + 2) * (i))
 #define SWAP(x0, x)                                                            \
   {                                                                            \
     float *tmp = x0;                                                           \
@@ -55,18 +55,25 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 
 // Linear solve for implicit methods (diffusion)
 void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
+  const int tileSize = 16;  // Tile size for blocking, can be adjusted
   const float invC = 1.0f/c;
   for (int l = 0; l < LINEARSOLVERTIMES; l++) {
-    for (int i = 1; i <= O; i++) {
-      for (int j = 1; j <= N; j++) {
-        for (int k = 1; k <= M; k++) {
-          float x_ijk = x0[IX(i, j, k)];
-          x[IX(i, j, k)] = (x_ijk + a * (x[IX(i - 1, j, k)] +
-                                          x[IX(i + 1, j, k)] +
-                                          x[IX(i, j - 1, k)] +
-                                          x[IX(i, j + 1, k)] +
-                                          x[IX(i, j, k - 1)] +
-                                          x[IX(i, j, k + 1)])) * invC;
+    // Tiled loop structure
+    for (int ii = 1; ii <= M; ii += tileSize) {
+      for (int jj = 1; jj <= N; jj += tileSize) {
+        for (int kk = 1; kk <= O; kk += tileSize) {
+          // Loops within a tile
+          for (int i = ii; i < std::min(ii + tileSize, M + 1); i++) {
+            for (int j = jj; j < std::min(jj + tileSize, N + 1); j++) {
+              for (int k = kk; k < std::min(kk + tileSize, O + 1); k++) {
+                x[IX(i, j, k)] = (x0[IX(i, j, k)] +
+                                  a * (x[IX(i - 1, j, k)] + x[IX(i + 1, j, k)] +
+                                       x[IX(i, j - 1, k)] + x[IX(i, j + 1, k)] +
+                                       x[IX(i, j, k - 1)] + x[IX(i, j, k + 1)])) *
+                                 invC;
+              }
+            }
+          }
         }
       }
     }

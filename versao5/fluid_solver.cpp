@@ -1,7 +1,7 @@
 #include "fluid_solver.h"
 #include <cmath>
 
-#define IX(i, j, k) ((i) + (M + 2) * (j) + (M + 2) * (N + 2) * (k))
+#define IX(i, j, k) ((k) + (M + 2) * (j) + (M + 2) * (N + 2) * (i))
 #define SWAP(x0, x)                                                            \
   {                                                                            \
     float *tmp = x0;                                                           \
@@ -54,17 +54,25 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 }
 
 // Linear solve for implicit methods (diffusion)
-void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a,
-               float c) {
+void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
+  const float invC = 1.0f / c;
+  int stride_j = M + 2;
+  int stride_k = stride_j * (N + 2);
+
   for (int l = 0; l < LINEARSOLVERTIMES; l++) {
     for (int i = 1; i <= M; i++) {
-      for (int j = 1; j <= N; j++) {
+      for (int j   = 1; j <= N; j++) {
         for (int k = 1; k <= O; k++) {
-          x[IX(i, j, k)] = (x0[IX(i, j, k)] +
-                            a * (x[IX(i - 1, j, k)] + x[IX(i + 1, j, k)] +
-                                 x[IX(i, j - 1, k)] + x[IX(i, j + 1, k)] +
-                                 x[IX(i, j, k - 1)] + x[IX(i, j, k + 1)])) /
-                           c;
+          float *x_ptr = &x[IX(i, j, k)];
+          float *x0_ptr = &x0[IX(i, j, k)];
+          
+          *x_ptr = (*x0_ptr + a * (*(x_ptr - 1) +       // x[i-1, j, k]
+                                   *(x_ptr + 1) +       // x[i+1, j, k]
+                                   *(x_ptr - stride_j) +  // x[i, j-1, k]
+                                   *(x_ptr + stride_j) +  // x[i, j+1, k]
+                                   *(x_ptr - stride_k) +  // x[i, j, k-1]
+                                   *(x_ptr + stride_k)))  // x[i, j, k+1]
+                    * invC;
         }
       }
     }

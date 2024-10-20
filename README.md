@@ -19,7 +19,11 @@ Merge de versao1 e 2
 
 # versao5
 
-(introduzir o que se fez)
+pointer arithmetic
+
+# versao6
+
+tilling
 
 # Comandos importantes
 correr perf, se for preciso introduzir mais flags
