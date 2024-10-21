@@ -10,6 +10,7 @@
   }
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define LINEARSOLVERTIMES 20
+#define TILESIZE 16
 
 // Add sources (density or velocity)
 void add_source(int M, int N, int O, float *x, float *s, float dt) {
@@ -55,17 +56,16 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 
 // Linear solve for implicit methods (diffusion)
 void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
-  const int tileSize = 16;  // Tile size for blocking, can be adjusted
   const float invC = 1.0f/c;
   for (int l = 0; l < LINEARSOLVERTIMES; l++) {
     // Tiled loop structure
-    for (int ii = 1; ii <= M; ii += tileSize) {
-      for (int jj = 1; jj <= N; jj += tileSize) {
-        for (int kk = 1; kk <= O; kk += tileSize) {
+    for (int ii = 1; ii <= M; ii += TILESIZE) {
+      for (int jj = 1; jj <= N; jj += TILESIZE) {
+        for (int kk = 1; kk <= O; kk += TILESIZE) {
           // Loops within a tile
-          for (int i = ii; i < std::min(ii + tileSize, M + 1); i++) {
-            for (int j = jj; j < std::min(jj + tileSize, N + 1); j++) {
-              for (int k = kk; k < std::min(kk + tileSize, O + 1); k++) {
+          for (int i = ii; i < std::min(ii + TILESIZE, M + 1); i++) {
+            for (int j = jj; j < std::min(jj + TILESIZE, N + 1); j++) {
+              for (int k = kk; k < std::min(kk + TILESIZE, O + 1); k++) {
                 x[IX(i, j, k)] = (x0[IX(i, j, k)] +
                                   a * (x[IX(i - 1, j, k)] + x[IX(i + 1, j, k)] +
                                        x[IX(i, j - 1, k)] + x[IX(i, j + 1, k)] +
