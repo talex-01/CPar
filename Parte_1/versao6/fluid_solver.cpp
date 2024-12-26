@@ -58,11 +58,9 @@ void set_bnd(int M, int N, int O, int b, float *x) {
 void lin_solve(int M, int N, int O, int b, float *x, float *x0, float a, float c) {
   const float invC = 1.0f/c;
   for (int l = 0; l < LINEARSOLVERTIMES; l++) {
-    // Tiled loop structure
     for (int ii = 1; ii <= M; ii += TILESIZE) {
       for (int jj = 1; jj <= N; jj += TILESIZE) {
         for (int kk = 1; kk <= O; kk += TILESIZE) {
-          // Loops within a tile
           for (int i = ii; i < std::min(ii + TILESIZE, M + 1); i++) {
             for (int j = jj; j < std::min(jj + TILESIZE, N + 1); j++) {
               for (int k = kk; k < std::min(kk + TILESIZE, O + 1); k++) {
